@@ -3,27 +3,22 @@
     passed.
 ]]
 
-Animation = {}
-Animation.__index = Animation
+Animation = Class{}
 
-function Animation:create(params)
-    local this = {
-        texture = params.texture,
+function Animation:init(params)
 
-        -- quads defining this animation
-        frames = params.frames or {},
+    self.texture = params.texture
 
-        -- time in seconds each frame takes (1/20 by default)
-        interval = params.interval or 0.05,
+    -- quads defining this animation
+    self.frames = params.frames or {}
 
-        -- stores amount of time that has elapsed
-        timer = 0,
+    -- time in seconds each frame takes (1/20 by default)
+    self.interval = params.interval or 0.05
 
-        currentFrame = 1
-    }
+    -- stores amount of time that has elapsed
+    self.timer = 0
 
-    setmetatable(this, self)
-    return this
+    self.currentFrame = 1
 end
 
 function Animation:getCurrentFrame()

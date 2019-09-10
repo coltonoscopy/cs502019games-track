@@ -5,158 +5,125 @@
 
 require 'Util'
 
--- object-oriented boilerplate; establish Map's "prototype"
-Map = {}
-Map.__index = Map
+Map = Class{}
 
 TILE_BRICK = 1
-TILE_EMPTY = 29
-TILE_QUESTION = 25
-TILE_QUESTION_DARK = 27
-
--- pipe tiles
-PIPE_TOP_LEFT = 265
-PIPE_TOP_RIGHT = 266
-PIPE_BOTTOM_LEFT = 298
-PIPE_BOTTOM_RIGHT = 299
+TILE_EMPTY = -1
 
 -- cloud tiles
-CLOUD_TOP_LEFT = 661
-CLOUD_TOP_MIDDLE = 662
-CLOUD_TOP_RIGHT = 663
-CLOUD_BOTTOM_LEFT = 694
-CLOUD_BOTTOM_MIDDLE = 695
-CLOUD_BOTTOM_RIGHT = 696
+CLOUD_LEFT = 6
+CLOUD_RIGHT = 7
 
 -- bush tiles
-BUSH_LEFT = 309
-BUSH_MIDDLE = 310
-BUSH_RIGHT = 311
+BUSH_LEFT = 2
+BUSH_RIGHT = 3
+
+-- mushroom tiles
+MUSHROOM_TOP = 10
+MUSHROOM_BOTTOM = 11
+
+-- jump block
+JUMP_BLOCK = 5
+JUMP_BLOCK_HIT = 9
 
 -- a speed to multiply delta time to scroll map; smooth value
-local scrollSpeed = 124
+local SCROLL_SPEED = 62
 
 -- constructor for our map object
-function Map:create()
-    local this = {
-        -- our texture containing all sprites
-        spritesheet = love.graphics.newImage('graphics/tiles.png'),
-        tileWidth = 16,
-        tileHeight = 16,
-        mapWidth = 100,
-        mapHeight = 28,
-        tiles = {},
+function Map:init()
 
-        -- applies positive y influence on anything affected
-        gravity = 15,
+    self.spritesheet = love.graphics.newImage('graphics/spritesheet.png')
+    self.sprites = generateQuads(self.spritesheet, 16, 16)
+    self.music = love.audio.newSource('sounds/music.wav', 'static')
 
-        -- camera offsets
-        camX = 0,
-        camY = -3,
-    }
+    self.tileWidth = 16
+    self.tileHeight = 16
+    self.mapWidth = 30
+    self.mapHeight = 28
+    self.tiles = {}
+
+    -- applies positive Y influence on anything affected
+    self.gravity = 15
 
     -- associate player with map
-    this.player = Player:create(this)
+    self.player = Player(self)
 
-    -- generate a quad (individual frame/sprite) for each tile
-    this.tileSprites = generateQuads(this.spritesheet, 16, 16)
+    -- camera offsets
+    self.camX = 0
+    self.camY = -3
 
     -- cache width and height of map in pixels
-    this.mapWidthPixels = this.mapWidth * this.tileWidth
-    this.mapHeightPixels = this.mapHeight * this.tileHeight
-
-    -- sprite batch for efficient tile rendering
-    this.spriteBatch = love.graphics.newSpriteBatch(this.spritesheet, this.mapWidth *
-        this.mapHeight)
-
-    -- more OO boilerplate so we have access to class functions
-    setmetatable(this, self)
+    self.mapWidthPixels = self.mapWidth * self.tileWidth
+    self.mapHeightPixels = self.mapHeight * self.tileHeight
 
     -- first, fill map with empty tiles
-    for y = 1, this.mapHeight do
-        for x = 1, this.mapWidth do
-            this:setTile(x, y, TILE_EMPTY)
+    for y = 1, self.mapHeight do
+        for x = 1, self.mapWidth do
+            
+            -- support for multiple sheets per tile; storing tiles as tables 
+            self:setTile(x, y, TILE_EMPTY)
         end
     end
 
     -- begin generating the terrain using vertical scan lines
     local x = 1
-    while x < this.mapWidth do
+    while x < self.mapWidth do
+        
         -- 2% chance to generate a cloud
-        -- make sure we're 3 tiles from edge at least
-        if x < this.mapWidth - 3 then
+        -- make sure we're 2 tiles from edge at least
+        if x < self.mapWidth - 2 then
             if math.random(20) == 1 then
+                
                 -- choose a random vertical spot above where blocks/pipes generate
-                local cloudStart = math.random(this.mapHeight / 2 - 6)
+                local cloudStart = math.random(self.mapHeight / 2 - 6)
 
-                this:setTile(x, cloudStart, CLOUD_TOP_LEFT)
-                this:setTile(x, cloudStart + 1, CLOUD_BOTTOM_LEFT)
-                this:setTile(x + 1, cloudStart, CLOUD_TOP_MIDDLE)
-                this:setTile(x + 1, cloudStart + 1, CLOUD_BOTTOM_MIDDLE)
-                this:setTile(x + 2, cloudStart, CLOUD_TOP_RIGHT)
-                this:setTile(x + 2, cloudStart + 1, CLOUD_BOTTOM_RIGHT)
+                self:setTile(x, cloudStart, CLOUD_LEFT)
+                self:setTile(x + 1, cloudStart, CLOUD_RIGHT)
             end
         end
 
-        -- 5% chance to generate a pipe
+        -- 5% chance to generate a mushroom
         if math.random(20) == 1 then
             -- left side of pipe
-            this:setTile(x, this.mapHeight / 2 - 2, PIPE_TOP_LEFT)
-            this:setTile(x, this.mapHeight / 2 - 1, PIPE_BOTTOM_LEFT)
+            self:setTile(x, self.mapHeight / 2 - 2, MUSHROOM_TOP)
+            self:setTile(x, self.mapHeight / 2 - 1, MUSHROOM_BOTTOM)
 
             -- creates column of tiles going to bottom of map
-            for y = this.mapHeight / 2, this.mapHeight do
-                this:setTile(x, y, TILE_BRICK)
-            end
-
-            -- next vertical scan line
-            x = x + 1
-
-            -- right side of pipe
-            this:setTile(x, this.mapHeight / 2 - 2, PIPE_TOP_RIGHT)
-            this:setTile(x, this.mapHeight / 2 - 1, PIPE_BOTTOM_RIGHT)
-
-            -- creates column of tiles going to bottom of map
-            for y = this.mapHeight / 2, this.mapHeight do
-                this:setTile(x, y, TILE_BRICK)
+            for y = self.mapHeight / 2, self.mapHeight do
+                self:setTile(x, y, TILE_BRICK)
             end
 
             -- next vertical scan line
             x = x + 1
 
         -- 10% chance to generate bush, being sure to generate away from edge
-        elseif math.random(10) == 1 and x < this.mapWidth - 3 then
-            local bushLevel = this.mapHeight / 2 - 1
+        elseif math.random(10) == 1 and x < self.mapWidth - 3 then
+            local bushLevel = self.mapHeight / 2 - 1
 
             -- place bush component and then column of bricks
-            this:setTile(x, bushLevel, BUSH_LEFT)
-            for y = this.mapHeight / 2, this.mapHeight do
-                this:setTile(x, y, TILE_BRICK)
+            self:setTile(x, bushLevel, BUSH_LEFT)
+            for y = self.mapHeight / 2, self.mapHeight do
+                self:setTile(x, y, TILE_BRICK)
             end
             x = x + 1
 
-            this:setTile(x, bushLevel, BUSH_MIDDLE)
-            for y = this.mapHeight / 2, this.mapHeight do
-                this:setTile(x, y, TILE_BRICK)
-            end
-            x = x + 1
-
-            this:setTile(x, bushLevel, BUSH_RIGHT)
-            for y = this.mapHeight / 2, this.mapHeight do
-                this:setTile(x, y, TILE_BRICK)
+            self:setTile(x, bushLevel, BUSH_RIGHT)
+            for y = self.mapHeight / 2, self.mapHeight do
+                self:setTile(x, y, TILE_BRICK)
             end
             x = x + 1
 
         -- 10% chance to not generate anything, creating a gap
         elseif math.random(10) ~= 1 then
+            
             -- creates column of tiles going to bottom of map
-            for y = this.mapHeight / 2, this.mapHeight do
-                this:setTile(x, y, TILE_BRICK)
+            for y = self.mapHeight / 2, self.mapHeight do
+                self:setTile(x, y, TILE_BRICK)
             end
 
             -- chance to create a block for Mario to hit
             if math.random(15) == 1 then
-                this:setTile(x, this.mapHeight / 2 - 4, TILE_QUESTION)
+                self:setTile(x, self.mapHeight / 2 - 4, JUMP_BLOCK)
             end
 
             -- next vertical scan line
@@ -167,23 +134,22 @@ function Map:create()
         end
     end
 
-    -- create sprite batch from tile quads
-    this:refreshSpriteBatch()
-
-    return this
+    -- start the background music
+    self.music:setLooping(true)
+    self.music:play()
 end
 
 -- return whether a given tile is collidable
 function Map:collides(tile)
     -- define our collidable tiles
     local collidables = {
-        TILE_BRICK, TILE_QUESTION, TILE_QUESTION_DARK,
-        PIPE_TOP_LEFT, PIPE_BOTTOM_LEFT, PIPE_TOP_RIGHT, PIPE_BOTTOM_RIGHT
+        TILE_BRICK, JUMP_BLOCK, JUMP_BLOCK_HIT,
+        MUSHROOM_TOP, MUSHROOM_BOTTOM
     }
 
     -- iterate and return true if our tile type matches
     for _, v in ipairs(collidables) do
-        if tile == v then
+        if tile.id == v then
             return true
         end
     end
@@ -191,33 +157,23 @@ function Map:collides(tile)
     return false
 end
 
--- recreate the sprite batch whenever a tile is changed
-function Map:refreshSpriteBatch()
-    -- sprite batch for efficient tile rendering
-    self.spriteBatch = love.graphics.newSpriteBatch(self.spritesheet, self.mapWidth *
-        self.mapHeight)
-    -- create sprite batch from tile quads
-    for y = 1, self.mapHeight do
-        for x = 1, self.mapWidth do
-            self.spriteBatch:add(self.tileSprites[self:getTile(x, y)],
-                (x - 1) * self.tileWidth, (y - 1) * self.tileHeight)
-        end
-    end
-end
-
--- function to update camera offset based on player coordinates
+-- function to update camera offset with delta time
 function Map:update(dt)
     self.player:update(dt)
-
+    
     -- keep camera's X coordinate following the player, preventing camera from
     -- scrolling past 0 to the left and the map's width
-    self.camX = math.max(0, math.min(self.player.x - virtualWidth / 2,
-        math.min(self.mapWidthPixels - virtualWidth, self.player.x)))
+    self.camX = math.max(0, math.min(self.player.x - VIRTUAL_WIDTH / 2,
+        math.min(self.mapWidthPixels - VIRTUAL_WIDTH, self.player.x)))
 end
 
 -- gets the tile type at a given pixel coordinate
 function Map:tileAt(x, y)
-    return self:getTile(math.floor(x / self.tileWidth) + 1, math.floor(y / self.tileHeight) + 1)
+    return {
+        x = math.floor(x / self.tileWidth) + 1,
+        y = math.floor(y / self.tileHeight) + 1,
+        id = self:getTile(math.floor(x / self.tileWidth) + 1, math.floor(y / self.tileHeight) + 1)
+    }
 end
 
 -- returns an integer value for the tile at a given x-y coordinate
@@ -226,13 +182,21 @@ function Map:getTile(x, y)
 end
 
 -- sets a tile at a given x-y coordinate to an integer value
-function Map:setTile(x, y, tile)
-    self.tiles[(y - 1) * self.mapWidth + x] = tile
+function Map:setTile(x, y, id)
+    self.tiles[(y - 1) * self.mapWidth + x] = id
 end
 
 -- renders our map to the screen, to be called by main's render
 function Map:render()
-    -- replace tile-by-tile rendering with spriteBatch draw call
-    love.graphics.draw(self.spriteBatch)
+    for y = 1, self.mapHeight do
+        for x = 1, self.mapWidth do
+            local tile = self:getTile(x, y)
+            if tile ~= TILE_EMPTY then
+                love.graphics.draw(self.spritesheet, self.sprites[tile],
+                    (x - 1) * self.tileWidth, (y - 1) * self.tileHeight)
+            end
+        end
+    end
+
     self.player:render()
 end

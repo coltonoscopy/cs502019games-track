@@ -7,23 +7,23 @@ require 'Util'
 
 Map = Class{}
 
-TILE_BRICK = 31
+TILE_BRICK = 1
 TILE_EMPTY = -1
 
 -- cloud tiles
-CLOUD_LEFT = 17
-CLOUD_RIGHT = 18
+CLOUD_LEFT = 6
+CLOUD_RIGHT = 7
 
 -- bush tiles
-BUSH_LEFT = 3
-BUSH_RIGHT = 4
+BUSH_LEFT = 2
+BUSH_RIGHT = 3
 
 -- mushroom tiles
-MUSHROOM_TOP = 4
-MUSHROOM_BOTTOM = 5
+MUSHROOM_TOP = 10
+MUSHROOM_BOTTOM = 11
 
 -- jump block
-JUMP_BLOCK = 7
+JUMP_BLOCK = 5
 
 -- a speed to multiply delta time to scroll map; smooth value
 local SCROLL_SPEED = 62
@@ -31,19 +31,8 @@ local SCROLL_SPEED = 62
 -- constructor for our map object
 function Map:init()
 
-    self.spritesheets = {
-        ['doors_and_windows'] = love.graphics.newImage('graphics/doors_and_windows.png'),
-        ['bushes_and_cacti'] = love.graphics.newImage('graphics/bushes_and_cacti.png'),
-        ['mushrooms'] = love.graphics.newImage('graphics/mushrooms.png'),
-        ['jump_blocks'] = love.graphics.newImage('graphics/jump_blocks.png')
-    }
-    
-    self.spriteLists = {
-        ['doors_and_windows'] = generateQuads(self.spritesheets['doors_and_windows'], 16, 16),
-        ['bushes_and_cacti'] = generateQuads(self.spritesheets['bushes_and_cacti'], 16, 16),
-        ['mushrooms'] = generateQuads(self.spritesheets['mushrooms'], 16, 16),
-        ['jump_blocks'] = generateQuads(self.spritesheets['jump_blocks'], 16, 16)
-    }
+    self.spritesheet = love.graphics.newImage('graphics/spritesheet.png')
+    self.sprites = generateQuads(self.spritesheet, 16, 16)
 
     self.tileWidth = 16
     self.tileHeight = 16
@@ -67,7 +56,7 @@ function Map:init()
         for x = 1, self.mapWidth do
             
             -- support for multiple sheets per tile; storing tiles as tables 
-            self:setTile(x, y, nil, TILE_EMPTY)
+            self:setTile(x, y, TILE_EMPTY)
         end
     end
 
@@ -83,20 +72,20 @@ function Map:init()
                 -- choose a random vertical spot above where blocks/pipes generate
                 local cloudStart = math.random(self.mapHeight / 2 - 6)
 
-                self:setTile(x, cloudStart, 'bushes_and_cacti', CLOUD_LEFT)
-                self:setTile(x + 1, cloudStart, 'bushes_and_cacti', CLOUD_RIGHT)
+                self:setTile(x, cloudStart, CLOUD_LEFT)
+                self:setTile(x + 1, cloudStart, CLOUD_RIGHT)
             end
         end
 
         -- 5% chance to generate a mushroom
         if math.random(20) == 1 then
             -- left side of pipe
-            self:setTile(x, self.mapHeight / 2 - 2, 'mushrooms', MUSHROOM_TOP)
-            self:setTile(x, self.mapHeight / 2 - 1, 'mushrooms', MUSHROOM_BOTTOM)
+            self:setTile(x, self.mapHeight / 2 - 2, MUSHROOM_TOP)
+            self:setTile(x, self.mapHeight / 2 - 1, MUSHROOM_BOTTOM)
 
             -- creates column of tiles going to bottom of map
             for y = self.mapHeight / 2, self.mapHeight do
-                self:setTile(x, y, 'doors_and_windows', TILE_BRICK)
+                self:setTile(x, y, TILE_BRICK)
             end
 
             -- next vertical scan line
@@ -107,15 +96,15 @@ function Map:init()
             local bushLevel = self.mapHeight / 2 - 1
 
             -- place bush component and then column of bricks
-            self:setTile(x, bushLevel, 'bushes_and_cacti', BUSH_LEFT)
+            self:setTile(x, bushLevel, BUSH_LEFT)
             for y = self.mapHeight / 2, self.mapHeight do
-                self:setTile(x, y, 'doors_and_windows', TILE_BRICK)
+                self:setTile(x, y, TILE_BRICK)
             end
             x = x + 1
 
-            self:setTile(x, bushLevel, 'bushes_and_cacti', BUSH_RIGHT)
+            self:setTile(x, bushLevel, BUSH_RIGHT)
             for y = self.mapHeight / 2, self.mapHeight do
-                self:setTile(x, y, 'doors_and_windows', TILE_BRICK)
+                self:setTile(x, y, TILE_BRICK)
             end
             x = x + 1
 
@@ -124,12 +113,12 @@ function Map:init()
             
             -- creates column of tiles going to bottom of map
             for y = self.mapHeight / 2, self.mapHeight do
-                self:setTile(x, y, 'doors_and_windows', TILE_BRICK)
+                self:setTile(x, y, TILE_BRICK)
             end
 
             -- chance to create a block for Mario to hit
             if math.random(15) == 1 then
-                self:setTile(x, self.mapHeight / 2 - 4, 'jump_blocks', JUMP_BLOCK)
+                self:setTile(x, self.mapHeight / 2 - 4, JUMP_BLOCK)
             end
 
             -- next vertical scan line
@@ -157,10 +146,8 @@ function Map:getTile(x, y)
 end
 
 -- sets a tile at a given x-y coordinate to an integer value
-function Map:setTile(x, y, sheet, id)
-    self.tiles[(y - 1) * self.mapWidth + x] = {
-        x = x, y = y, sheet = sheet, id = id
-    }
+function Map:setTile(x, y, id)
+    self.tiles[(y - 1) * self.mapWidth + x] = id
 end
 
 -- renders our map to the screen, to be called by main's render
@@ -168,8 +155,8 @@ function Map:render()
     for y = 1, self.mapHeight do
         for x = 1, self.mapWidth do
             local tile = self:getTile(x, y)
-            if tile.id ~= TILE_EMPTY then
-                love.graphics.draw(self.spritesheets[tile.sheet], self.spriteLists[tile.sheet][tile.id],
+            if tile ~= TILE_EMPTY then
+                love.graphics.draw(self.spritesheet, self.sprites[tile],
                     (x - 1) * self.tileWidth, (y - 1) * self.tileHeight)
             end
         end

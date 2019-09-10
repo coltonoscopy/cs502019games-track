@@ -28,6 +28,9 @@ function love.load()
     -- makes upscaling look pixel-y instead of blurry
     love.graphics.setDefaultFilter('nearest', 'nearest')
 
+    -- sets up a different, better-looking retro font as our default
+    love.graphics.setFont(love.graphics.newFont('fonts/font.ttf', 8))
+
     -- sets up virtual screen resolution for an authentic retro feel
     push:setupScreen(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT, {
         fullscreen = false,
@@ -49,7 +52,7 @@ end
 
 -- called every frame, with dt passed in as delta in time since last frame
 function love.update(dt)
-
+    map:update(dt)
 end
 
 -- called each frame, used to render to the screen
@@ -61,6 +64,7 @@ function love.draw()
     love.graphics.clear(108, 140, 255, 255)
 
     -- renders our map object onto the screen
+    love.graphics.translate(math.floor(-map.camX + 0.5), math.floor(-map.camY + 0.5))
     map:render()
 
     -- end virtual resolution

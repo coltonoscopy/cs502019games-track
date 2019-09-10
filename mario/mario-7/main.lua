@@ -3,34 +3,33 @@
     Author: Colton Ogden
     Original Credit: Nintendo
 
-    Adds animation to Mario.
+    Demonstrates rendering a screen of tiles.
 ]]
 
--- global key-handling
-love.keyboard.keysPressed = {}
-love.keyboard.keysReleased = {}
-
+Class = require 'class'
 push = require 'push'
 
+require 'Animation'
 require 'Map'
 require 'Player'
 
 -- close resolution to NES but 16:9
-virtualWidth = 432
-virtualHeight = 243
+VIRTUAL_WIDTH = 432
+VIRTUAL_HEIGHT = 243
 
 -- actual window resolution
-windowWidth = 1280
-windowHeight = 720
+WINDOW_WIDTH = 1280
+WINDOW_HEIGHT = 720
 
 -- seed RNG
 math.randomseed(os.time())
 
 -- an object to contain our map data
-map = Map:create()
+map = Map()
 
 -- performs initialization of all objects and data needed by program
 function love.load()
+    
     -- makes upscaling look pixel-y instead of blurry
     love.graphics.setDefaultFilter('nearest', 'nearest')
 
@@ -38,10 +37,13 @@ function love.load()
     love.graphics.setFont(love.graphics.newFont('fonts/font.ttf', 8))
 
     -- sets up virtual screen resolution for an authentic retro feel
-    push:setupScreen(virtualWidth, virtualHeight, windowWidth, windowHeight, {
+    push:setupScreen(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT, {
         fullscreen = false,
         resizable = true
     })
+
+    love.keyboard.keysPressed = {}
+    love.keyboard.keysReleased = {}
 end
 
 -- called whenever window is resized
@@ -99,7 +101,7 @@ function love.draw()
     love.graphics.clear(108, 140, 255, 255)
 
     -- renders our map object onto the screen
-    love.graphics.translate(math.floor(-map.camX), math.floor(-map.camY))
+    love.graphics.translate(math.floor(-map.camX + 0.5), math.floor(-map.camY + 0.5))
     map:render()
 
     -- end virtual resolution

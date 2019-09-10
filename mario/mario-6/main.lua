@@ -9,6 +9,7 @@
 Class = require 'class'
 push = require 'push'
 
+require 'Animation'
 require 'Map'
 require 'Player'
 

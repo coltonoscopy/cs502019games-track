@@ -2,76 +2,111 @@
     Represents our player in the game, with its own sprite.
 ]]
 
-Player = {}
-Player.__index = Player
+Player = Class{}
 
-function Player:create(map)
-    local this = {
-        x = 0,
-        y = 0,
-        width = 16,
-        height = 32,
+local WALKING_SPEED = 100
 
-        -- offset from top left to center to support sprite flipping
-        xOffset = 8,
-        yOffset = 16,
+function Player:init(map)
+    
+    self.x = 0
+    self.y = 0
+    self.width = 16
+    self.height = 20
 
-        -- reference to map for checking tiles
-        map = map,
-        texture = love.graphics.newImage('graphics/mario1.png'),
+    -- offset from top left to center to support sprite flipping
+    self.xOffset = 8
+    self.yOffset = 16
 
-        -- animation frames
-        frames = {},
+    -- reference to map for checking tiles
+    self.map = map
+    self.texture = love.graphics.newImage('graphics/blue_alien.png')
 
-        -- current animation frame
-        currentFrame = nil,
+    -- animation frames
+    self.frames = {}
 
-        -- used to determine behavior and animations
-        state = 'idle',
+    -- current animation frame
+    self.currentFrame = nil
 
-        -- determines sprite flipping
-        direction = 'right',
+    -- used to determine behavior and animations
+    self.state = 'idle'
 
-        -- x and y velocity
-        dx = 0,
-        dy = 0
-    }
+    -- determines sprite flipping
+    self.direction = 'left'
+
+    -- x and y velocity
+    self.dx = 0
+    self.dy = 0
 
     -- position on top of map tiles
-    this.y = map.tileHeight * ((map.mapHeight - 2) / 2) - this.height
-    this.x = map.tileWidth * 10
+    self.y = map.tileHeight * ((map.mapHeight - 2) / 2) - self.height
+    self.x = map.tileWidth * 10
 
-    this.frames = {
-        -- first frame in the sheet, idle pose
-        love.graphics.newQuad(0, 0, 16, 32, this.texture:getDimensions())
+    -- initialize all player animations
+    self.animations = {
+        ['idle'] = Animation({
+            texture = self.texture,
+            frames = {
+                love.graphics.newQuad(0, 0, 16, 20, self.texture:getDimensions())
+            }
+        }),
+        ['walking'] = Animation({
+            texture = self.texture,
+            frames = {
+                love.graphics.newQuad(128, 0, 16, 20, self.texture:getDimensions()),
+                love.graphics.newQuad(144, 0, 16, 20, self.texture:getDimensions()),
+                love.graphics.newQuad(160, 0, 16, 20, self.texture:getDimensions()),
+                love.graphics.newQuad(144, 0, 16, 20, self.texture:getDimensions()),
+            },
+            interval = 0.15
+        })
     }
 
-    this.currentFrame = this.frames[1]
+    -- initialize animation and current frame we should render
+    self.animation = self.animations['idle']
+    self.currentFrame = self.animation:getCurrentFrame()
 
     -- behavior map we can call based on player state
-    this.behaviors = {
+    self.behaviors = {
         ['idle'] = function(dt)
+            
             -- basic sprite flipping example
             if love.keyboard.isDown('left') then
-                direction = 'left'
-                this.dx = -80
+                self.direction = 'left'
+                self.dx = -WALKING_SPEED
+                self.state = 'walking'
+                self.animations['walking']:restart()
+                self.animation = self.animations['walking']
             elseif love.keyboard.isDown('right') then
-                direction = 'right'
-                this.dx = 80
+                self.direction = 'right'
+                self.dx = WALKING_SPEED
+                self.state = 'walking'
+                self.animations['walking']:restart()
+                self.animation = self.animations['walking']
+            end
+        end,
+        ['walking'] = function(dt)
+            
+            -- keep track of input to switch movement while walking, or reset
+            -- to idle if we're not moving
+            if love.keyboard.isDown('left') then
+                self.direction = 'left'
+                self.dx = -WALKING_SPEED
+            elseif love.keyboard.isDown('right') then
+                self.direction = 'right'
+                self.dx = WALKING_SPEED
             else
-                this.dx = 0
+                self.dx = 0
+                self.state = 'idle'
+                self.animation = self.animations['idle']
             end
         end
     }
-
-    setmetatable(this, self)
-    return this
 end
 
 function Player:update(dt)
     self.behaviors[self.state](dt)
-
-    -- new X calculation on velocity
+    self.animation:update(dt)
+    self.currentFrame = self.animation:getCurrentFrame()
     self.x = self.x + self.dx * dt
 end
 
@@ -80,7 +115,7 @@ function Player:render()
 
     -- set negative x scale factor if facing left, which will flip the sprite
     -- when applied
-    if direction == 'right' then
+    if self.direction == 'right' then
         scaleX = 1
     else
         scaleX = -1

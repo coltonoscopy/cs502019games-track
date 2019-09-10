@@ -40,8 +40,8 @@ function Player:init(map)
     self.x = map.tileWidth * 10
 
     self.frames = {
-        -- first frame in the sheet, idle pose
-        love.graphics.newQuad(0, 0, 16, 20, self.texture:getDimensions())
+        -- later frame in the sheet, idle pose with direction
+        love.graphics.newQuad(144, 0, 16, 20, self.texture:getDimensions())
     }
 
     self.currentFrame = self.frames[1]
@@ -51,11 +51,14 @@ function Player:init(map)
         ['idle'] = function(dt)
             
             -- basic sprite flipping example
-            if love.keyboard.wasPressed('left') then
-                direction = 'left'
-            end
-            if love.keyboard.wasPressed('right') then
-                direction = 'right'
+            if love.keyboard.isDown('left') then
+                self.direction = 'left'
+                self.dx = -80
+            elseif love.keyboard.isDown('right') then
+                self.direction = 'right'
+                self.dx = 80
+            else
+                self.dx = 0
             end
         end
     }
@@ -63,6 +66,9 @@ end
 
 function Player:update(dt)
     self.behaviors[self.state](dt)
+
+    -- new X calculation on velocity
+    self.x = self.x + self.dx * dt
 end
 
 function Player:render()
@@ -77,6 +83,6 @@ function Player:render()
     end
 
     -- draw sprite with scale factor and offsets
-    love.graphics.draw(self.texture, self.currentFrame, self.x + self.xOffset,
-        self.y + self.yOffset, 0, scaleX, 1, self.xOffset, self.yOffset)
+    love.graphics.draw(self.texture, self.currentFrame, math.floor(self.x + self.xOffset),
+        math.floor(self.y + self.yOffset), 0, scaleX, 1, self.xOffset, self.yOffset)
 end

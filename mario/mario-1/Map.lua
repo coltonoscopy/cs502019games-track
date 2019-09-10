@@ -7,18 +7,25 @@ require 'Util'
 
 Map = Class{}
 
-TILE_BRICK = 31
+TILE_BRICK = 1
 TILE_EMPTY = -1
+
+-- a speed to multiply delta time to scroll map; smooth value
+local SCROLL_SPEED = 62
 
 -- constructor for our map object
 function Map:init()
 
-    self.spritesheet = love.graphics.newImage('graphics/doors_and_windows.png')
+    self.spritesheet = love.graphics.newImage('graphics/spritesheet.png')
     self.tileWidth = 16
     self.tileHeight = 16
     self.mapWidth = 30
     self.mapHeight = 28
     self.tiles = {}
+
+    -- camera offsets
+    self.camX = 0
+    self.camY = -3
 
     -- generate a quad (individual frame/sprite) for each tile
     self.tileSprites = generateQuads(self.spritesheet, 16, 16)
@@ -46,6 +53,11 @@ end
 -- sets a tile at a given x-y coordinate to an integer value
 function Map:setTile(x, y, tile)
     self.tiles[(y - 1) * self.mapWidth + x] = tile
+end
+
+-- function to update camera offset with delta time
+function Map:update(dt)
+    self.camX = self.camX + dt * SCROLL_SPEED
 end
 
 -- renders our map to the screen, to be called by main's render
